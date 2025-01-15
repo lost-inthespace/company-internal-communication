@@ -1,0 +1,328 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Company Internal Communication</title>
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: Arial, sans-serif;
+            line-height: 1.6;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background-color: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+            padding-bottom: 20px;
+            border-bottom: 1px solid #eee;
+        }
+
+        .tab-container {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+
+        .tab {
+            padding: 10px 20px;
+            background-color: #eee;
+            border: none;
+            cursor: pointer;
+            border-radius: 4px;
+        }
+
+        .tab.active {
+            background-color: #007bff;
+            color: white;
+        }
+
+        .content {
+            display: flex;
+            gap: 20px;
+        }
+
+        .filters {
+            width: 200px;
+            padding: 15px;
+            background-color: #f8f9fa;
+            border-radius: 4px;
+        }
+
+        .main-content {
+            flex-grow: 1;
+        }
+
+        .employee-card, .message-card {
+            padding: 15px;
+            border: 1px solid #eee;
+            margin-bottom: 10px;
+            border-radius: 4px;
+        }
+
+        .compose-btn {
+            padding: 10px 20px;
+            background-color: #28a745;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0,0,0,0.5);
+        }
+
+        .modal-content {
+            position: relative;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background-color: white;
+            padding: 20px;
+            border-radius: 8px;
+            width: 90%;
+            max-width: 600px;
+        }
+
+        select, input {
+            width: 100%;
+            padding: 8px;
+            margin-bottom: 10px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+        }
+
+        .close {
+            position: absolute;
+            right: 10px;
+            top: 10px;
+            cursor: pointer;
+        }
+    </style>
+</head>
+<body>
+<div class="container">
+    <div class="header">
+        <h1>Company Internal Communication</h1>
+        <button class="compose-btn" onclick="showComposeModal()">New Letter</button>
+    </div>
+
+    <div class="tab-container">
+        <button class="tab active" onclick="switchTab('employees')">Employee List</button>
+        <button class="tab" onclick="switchTab('inbox')">Inbox</button>
+    </div>
+
+    <div class="content">
+        <div class="filters">
+            <h3>Filters</h3>
+            <select id="departmentFilter" onchange="applyFilters()">
+                <option value="">All Departments</option>
+                <option value="Engineering">Engineering</option>
+                <option value="Marketing">Marketing</option>
+                <option value="HR">HR</option>
+                <option value="Sales">Sales</option>
+            </select>
+
+            <select id="sortOrder" onchange="applyFilters()">
+                <option value="newest">Newest First</option>
+                <option value="oldest">Oldest First</option>
+                <option value="az">A-Z</option>
+                <option value="za">Z-A</option>
+            </select>
+        </div>
+
+        <div class="main-content" id="employeeList"></div>
+        <div class="main-content" id="inbox" style="display: none;"></div>
+    </div>
+</div>
+
+<!-- Compose Modal -->
+<div id="composeModal" class="modal">
+    <div class="modal-content">
+        <span class="close" onclick="hideComposeModal()">&times;</span>
+        <h2>New Letter</h2>
+        <select id="sender">
+            <option value="">Select Sender</option>
+        </select>
+        <input type="text" id="subject" placeholder="Subject">
+        <textarea id="messageContent" placeholder="Message content..." style="width: 100%; height: 200px; margin-bottom: 10px;"></textarea>
+        <input type="file" id="attachment">
+        <button onclick="sendMessage()" style="background-color: #28a745; color: white; padding: 10px 20px; border: none; border-radius: 4px; cursor: pointer;">Send</button>
+    </div>
+</div>
+
+<script>
+    // Mock database
+    const employees = [
+        { id: 1, name: 'John Doe', department: 'Engineering', joinDate: '2024-01-15' },
+        { id: 2, name: 'Jane Smith', department: 'Marketing', joinDate: '2024-01-10' },
+        { id: 3, name: 'Bob Johnson', department: 'HR', joinDate: '2023-12-20' },
+        { id: 4, name: 'Alice Brown', department: 'Sales', joinDate: '2024-01-05' },
+        { id: 5, name: 'Charlie Wilson', department: 'Engineering', joinDate: '2023-12-15' },
+        { id: 6, name: 'Eva Davis', department: 'Marketing', joinDate: '2024-01-02' },
+        { id: 7, name: 'Frank Miller', department: 'HR', joinDate: '2023-12-10' },
+        { id: 8, name: 'Grace Taylor', department: 'Sales', joinDate: '2024-01-08' }
+    ];
+
+    const messages = [
+        { id: 1, from: 'John Doe', to: 'Engineering', subject: 'New Project Update', content: 'Team, here are the latest updates...', date: '2024-01-14', department: 'Engineering' },
+        { id: 2, from: 'Jane Smith', to: 'Marketing', subject: 'Campaign Results', content: 'Great results from our recent campaign...', date: '2024-01-13', department: 'Marketing' },
+        { id: 3, from: 'Bob Johnson', to: 'All', subject: 'HR Policy Update', content: 'Please review the updated policies...', date: '2024-01-12', department: 'HR' },
+        { id: 4, from: 'Alice Brown', to: 'Sales', subject: 'Q4 Sales Report', content: 'Here are our Q4 performance numbers...', date: '2024-01-11', department: 'Sales' }
+    ];
+
+    // Current view state
+    let currentTab = 'employees';
+
+    // Functions
+    function switchTab(tab) {
+        currentTab = tab;
+        document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+        event.target.classList.add('active');
+
+        document.getElementById('employeeList').style.display = tab === 'employees' ? 'block' : 'none';
+        document.getElementById('inbox').style.display = tab === 'inbox' ? 'block' : 'none';
+
+        applyFilters();
+    }
+
+    function applyFilters() {
+        const department = document.getElementById('departmentFilter').value;
+        const sortOrder = document.getElementById('sortOrder').value;
+
+        let items = currentTab === 'employees' ? [...employees] : [...messages];
+
+        // Filter by department
+        if (department) {
+            items = items.filter(item => item.department === department);
+        }
+
+        // Sort items
+        items.sort((a, b) => {
+            if (sortOrder === 'newest') {
+                return new Date(b.joinDate || b.date) - new Date(a.joinDate || a.date);
+            } else if (sortOrder === 'oldest') {
+                return new Date(a.joinDate || a.date) - new Date(b.joinDate || b.date);
+            } else if (sortOrder === 'az') {
+                return (a.name || a.subject).localeCompare(b.name || b.subject);
+            } else if (sortOrder === 'za') {
+                return (b.name || b.subject).localeCompare(a.name || a.subject);
+            }
+        });
+
+        // Display items
+        const container = document.getElementById(currentTab === 'employees' ? 'employeeList' : 'inbox');
+        container.innerHTML = '';
+
+        items.forEach(item => {
+            const card = document.createElement('div');
+            card.className = currentTab === 'employees' ? 'employee-card' : 'message-card';
+
+            if (currentTab === 'employees') {
+                card.innerHTML = `
+                        <h3>${item.name}</h3>
+                        <p>Department: ${item.department}</p>
+                        <p>Join Date: ${item.joinDate}</p>
+                    `;
+            } else {
+                card.innerHTML = `
+                        <h3>${item.subject}</h3>
+                        <p>From: ${item.from}</p>
+                        <p>To: ${item.to}</p>
+                        <p>Date: ${item.date}</p>
+                        <p>${item.content}</p>
+                    `;
+            }
+
+            container.appendChild(card);
+        });
+    }
+
+    function showComposeModal() {
+        // Populate sender dropdown with employee list
+        const senderSelect = document.getElementById('sender');
+        senderSelect.innerHTML = '<option value="">Select Sender</option>';
+
+        employees.forEach(employee => {
+            const option = document.createElement('option');
+            option.value = employee.name;
+            option.textContent = `${employee.name} (${employee.department})`;
+            senderSelect.appendChild(option);
+        });
+
+        document.getElementById('composeModal').style.display = 'block';
+    }
+
+    function hideComposeModal() {
+        document.getElementById('composeModal').style.display = 'none';
+    }
+
+    function sendMessage() {
+        const sender = document.getElementById('sender').value;
+        const subject = document.getElementById('subject').value;
+        const content = document.getElementById('messageContent').value;
+        const attachment = document.getElementById('attachment').value;
+
+        if (!sender || !subject || !content) {
+            alert('Please fill in all required fields');
+            return;
+        }
+
+        // Get sender's department
+        const senderData = employees.find(emp => emp.name === sender);
+        const senderDepartment = senderData ? senderData.department : '';
+
+        const newMessage = {
+            id: messages.length + 1,
+            from: sender,
+            to: senderDepartment,
+            subject: subject,
+            content: content,
+            date: new Date().toISOString().split('T')[0],
+            department: senderDepartment
+        };
+
+        messages.unshift(newMessage);
+        hideComposeModal();
+
+        if (currentTab === 'inbox') {
+            applyFilters();
+        }
+
+        // Reset form
+        document.getElementById('recipientDepartment').value = '';
+        document.getElementById('subject').value = '';
+        document.getElementById('messageContent').value = '';
+        document.getElementById('attachment').value = '';
+    }
+
+    // Initial load
+    applyFilters();
+</script>
+</body>
+</html>
